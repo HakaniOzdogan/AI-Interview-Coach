@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text;
@@ -29,7 +30,7 @@ public sealed class LlmPromptAbEvaluationTests
         var manifest = await LoadManifestAsync();
         manifest.Cases.Should().NotBeEmpty();
 
-        var validator = new LlmCoachingService(new NoopLlmClient());
+        var validator = new LlmCoachingService(new NoopLlmClient(), NullLogger<LlmCoachingService>.Instance);
 
         var summary = new LlmAbSummary
         {
@@ -214,7 +215,7 @@ public sealed class LlmPromptAbEvaluationTests
 
     private static string FixturePath(params string[] parts)
     {
-        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Fixtures", "LlmPromptEval"));
+        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Fixtures", "LlmPromptEval"));
         return Path.Combine(new[] { basePath }.Concat(parts).ToArray());
     }
 

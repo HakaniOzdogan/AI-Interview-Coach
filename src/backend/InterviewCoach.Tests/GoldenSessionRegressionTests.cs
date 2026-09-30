@@ -202,7 +202,7 @@ public sealed class GoldenSessionRegressionTests
 
     private static string GetFixturePath(params string[] parts)
     {
-        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Fixtures", "GoldenSessions"));
+        var basePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Fixtures", "GoldenSessions"));
         return Path.Combine(new[] { basePath }.Concat(parts).ToArray());
     }
 }

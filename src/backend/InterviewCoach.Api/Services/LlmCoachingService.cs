@@ -165,6 +165,7 @@ public class LlmCoachingService : ILlmCoachingService
         {
             var normalized = RemoveMeta(json);
             response = JsonSerializer.Deserialize<LlmCoachingResponse>(normalized, StrictOptions);
+            AddMissingRubricFieldErrors(normalized, errors);
         }
         catch (Exception ex)
         {
@@ -178,8 +179,39 @@ public class LlmCoachingService : ILlmCoachingService
             return false;
         }
 
+        if (errors.Count > 0 || response.Rubric is null)
+        {
+            if (response.Rubric is null && !errors.Any(e => e.StartsWith("rubric", StringComparison.Ordinal)))
+                errors.Add("rubric is missing.");
+            return false;
+        }
+
         Validate(response, errors);
         return errors.Count == 0;
+    }
+
+    private static readonly string[] RubricFields = ["technical_correctness", "depth", "structure", "clarity", "confidence"];
+
+    // Eksik int alanlari System.Text.Json tarafindan sessizce 0 yapilir; rapor "0/5" gosterir.
+    // Eksik alani hata sayarak duzeltme istemi (fix prompt) ile yeniden denemeyi tetikler.
+    private static void AddMissingRubricFieldErrors(string json, List<string> errors)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.ValueKind != JsonValueKind.Object
+            || !doc.RootElement.TryGetProperty("rubric", out var rubric)
+            || rubric.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add("rubric is missing or not an object.");
+            return;
+        }
+
+        foreach (var field in RubricFields)
+        {
+            var present = rubric.EnumerateObject().Any(p =>
+                string.Equals(p.Name, field, StringComparison.OrdinalIgnoreCase) && p.Value.ValueKind == JsonValueKind.Number);
+            if (!present)
+                errors.Add($"rubric.{field} is missing or not a number.");
+        }
     }
 
     private static string RemoveMeta(string json)

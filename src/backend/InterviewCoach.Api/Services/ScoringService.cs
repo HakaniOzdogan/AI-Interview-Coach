@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 using InterviewCoach.Application;
 using InterviewCoach.Domain;
 using Microsoft.Extensions.Logging;
@@ -64,6 +65,7 @@ public class ScoringService : IScoringService
         var profile = ResolveProfile(session.ScoringProfile, out _);
         var thresholds = profile.Thresholds;
         var weights = profile.Weights;
+        stats = WithTranscriptSpeechStats(session, stats);
 
         var eyeContact = GetAverageUnit(metrics, "eyeContact");
         var posture = GetAverageUnit(metrics, "posture");
@@ -100,6 +102,7 @@ public class ScoringService : IScoringService
         var thresholds = profile.Thresholds;
 
         var feedback = new List<FeedbackItem>();
+        stats = WithTranscriptSpeechStats(session, stats);
 
         var eyeContact = GetAverageUnit(metrics, "eyeContact");
         var posture = GetAverageUnit(metrics, "posture");
@@ -272,6 +275,53 @@ public class ScoringService : IScoringService
 
         var overRatio = (v - t) / (1 - t);
         return ClampScore((int)Math.Round(70 - (overRatio * 70)));
+    }
+
+    private static readonly Regex WordRegex = new(@"\p{L}[\p{L}\p{N}'’-]*", RegexOptions.Compiled);
+
+    // Turkce ve Ingilizce yaygin dolgu ifadeleri; baska kelimelerin icinde eslesmez ("şeyler", "yanıt").
+    private static readonly Regex FillerRegex = new(
+        @"(?<![\p{L}\p{N}])(e{2,}|ı{2,}|i{2,}|hm+|um+|uh+|uhm|erm|şey|yani)(?![\p{L}\p{N}])",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Canli mulakat istemcisi konusma istatistigi gondermedigi icin, eksik olan wpm / filler_count /
+    /// duration_ms degerlerini oturumun transkript segmentlerinden turetir. Acikca verilen istatistikler korunur.
+    /// </summary>
+    private static Dictionary<string, object>? WithTranscriptSpeechStats(Session session, Dictionary<string, object>? stats)
+    {
+        var hasWpm = TryGetInt(stats, "wpm").HasValue;
+        var hasFillerRate = TryGetFillerPerMinute(stats).HasValue;
+        if ((hasWpm && hasFillerRate) || session.TranscriptSegments.Count == 0)
+            return stats;
+
+        long speakingMs = 0;
+        var words = 0;
+        var fillers = 0;
+        foreach (var segment in session.TranscriptSegments)
+        {
+            speakingMs += Math.Max(0, segment.EndMs - segment.StartMs);
+            words += WordRegex.Matches(segment.Text ?? string.Empty).Count;
+            fillers += FillerRegex.Matches(segment.Text ?? string.Empty).Count;
+        }
+
+        if (speakingMs <= 0 || words == 0)
+            return stats;
+
+        var merged = stats is null
+            ? new Dictionary<string, object>()
+            : new Dictionary<string, object>(stats);
+
+        if (!hasWpm)
+            merged["wpm"] = (int)Math.Round(words / (speakingMs / 60000d));
+
+        if (!hasFillerRate)
+        {
+            merged["filler_count"] = fillers;
+            merged["duration_ms"] = speakingMs;
+        }
+
+        return merged;
     }
 
     private static int ComputeSpeakingRateScore(Dictionary<string, object>? stats, int idealMin, int idealMax)

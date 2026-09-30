@@ -21,7 +21,7 @@ public class LlmCoachingOrchestratorTests
         await SeedSessionAsync(db, sessionId);
 
         var fakeLlm = new FakeLlmCoachingService();
-        fakeLlm.Enqueue("primary-model", () => LlmCoachingResult.Success(CreateValidResponse(), JsonSerializer.Serialize(CreateValidResponse())));
+        fakeLlm.Enqueue("primary-model", () => LlmCoachingResult.Success(CreateValidResponse(), JsonSerializer.Serialize(CreateValidResponse()), "fake", "primary-model", null, null));
 
         var orchestrator = CreateOrchestrator(db, fakeLlm, CreateDefaultSummary(sessionId), new LlmOptions
         {
@@ -45,7 +45,7 @@ public class LlmCoachingOrchestratorTests
 
         var fakeLlm = new FakeLlmCoachingService();
         fakeLlm.Enqueue("primary-model", () => throw new OperationCanceledException("timeout"));
-        fakeLlm.Enqueue("primary-model", () => LlmCoachingResult.Success(CreateValidResponse(), JsonSerializer.Serialize(CreateValidResponse())));
+        fakeLlm.Enqueue("primary-model", () => LlmCoachingResult.Success(CreateValidResponse(), JsonSerializer.Serialize(CreateValidResponse()), "fake", "primary-model", null, null));
 
         var orchestrator = CreateOrchestrator(db, fakeLlm, CreateDefaultSummary(sessionId), new LlmOptions
         {
@@ -76,7 +76,7 @@ public class LlmCoachingOrchestratorTests
 
         var fakeLlm = new FakeLlmCoachingService();
         fakeLlm.Enqueue("primary-model", () => LlmCoachingResult.Failure(["invalid json"]));
-        fakeLlm.Enqueue("fallback-model", () => LlmCoachingResult.Success(CreateValidResponse(), JsonSerializer.Serialize(CreateValidResponse())));
+        fakeLlm.Enqueue("fallback-model", () => LlmCoachingResult.Success(CreateValidResponse(), JsonSerializer.Serialize(CreateValidResponse()), "fake", "fallback-model", null, null));
 
         var orchestrator = CreateOrchestrator(db, fakeLlm, CreateDefaultSummary(sessionId), new LlmOptions
         {
@@ -236,7 +236,7 @@ public class LlmCoachingOrchestratorTests
         await SeedSessionAsync(db, sessionId);
 
         var fakeLlm = new FakeLlmCoachingService();
-        fakeLlm.Enqueue("primary-model", () => LlmCoachingResult.Success(CreateValidResponse(), JsonSerializer.Serialize(CreateValidResponse())));
+        fakeLlm.Enqueue("primary-model", () => LlmCoachingResult.Success(CreateValidResponse(), JsonSerializer.Serialize(CreateValidResponse()), "fake", "primary-model", null, null));
 
         var orchestrator = CreateOrchestrator(
             db,
@@ -494,7 +494,7 @@ public class LlmCoachingOrchestratorTests
     private sealed class FakeLlmCoachingService : ILlmCoachingService
     {
         private readonly Dictionary<string, Queue<Func<LlmCoachingResult>>> _plans = new(StringComparer.OrdinalIgnoreCase);
-        private readonly LlmCoachingService _parser = new(new DummyLlmClient());
+        private readonly LlmCoachingService _parser = new(new DummyLlmClient(), NullLogger<LlmCoachingService>.Instance);
 
         public int Calls { get; private set; }
 

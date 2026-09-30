@@ -231,7 +231,7 @@ public sealed class EvaluationDatasetIntegrationTests
 
     private static string DatasetPath(params string[] parts)
     {
-        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Fixtures", "EvaluationDataset"));
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Fixtures", "EvaluationDataset"));
         return Path.Combine(new[] { root }.Concat(parts).ToArray());
     }
 
