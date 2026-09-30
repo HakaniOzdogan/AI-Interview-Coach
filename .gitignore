@@ -23,3 +23,8 @@ venv/
 .env.local
 services/speech-service/venv/
 python-service/models/
+
+# Log ve arsiv dosyalari
+*_log.txt
+*_logs.txt
+*.zip
